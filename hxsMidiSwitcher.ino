@@ -194,4 +194,3 @@ void midiSend() {
     nextCommand = -1; // re-initialise this so we don't send the same message repeatedly
   }
 } // end midisend
-`
