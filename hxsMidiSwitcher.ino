@@ -25,6 +25,15 @@
 // // error blink codes
 // #define ERR_DISP_ALLOC 3 // display allocation error
 
+#define LED_PIN 13
+int ledState = LOW;
+
+// #define NUM_BUTTONS 10
+// const uint8_t BUTTON_PINS[NUM_BUTTONS] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+// Bounce * buttons = new Bounce[NUM_BUTTONS];
+// unsigned long buttonPressTimeStamp[NUM_BUTTONS];
+// unsigned long buttonReleaseTimeStamp[NUM_BUTTONS];
+
 static const unsigned ledPin = LED_BUILTIN; // use onboard LED as activity indicator
 static const byte switchPin[] = {2,3,4,5,6,7,8,9,10,11}; // pins for footswitch inputs
 static const byte switchCount = 10; // number of footswitches used
