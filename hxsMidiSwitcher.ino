@@ -36,8 +36,8 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define ERR_DISP_ALLOC 3 // display allocation error
 
 static const unsigned ledPin = LED_BUILTIN; // use onboard LED as activity indicator
-static const byte switchPin[] = {2,3,4,5,6,7,8,9}; // pins for footswitch inputs
-static const byte switchCount = 8; // number of footswitches used
+static const byte switchPin[] = {2,3,4,5,6,7,8,9,10,11}; // pins for footswitch inputs
+static const byte switchCount = 10; // number of footswitches used
 static bool switchPressed[switchCount]; // current state of footswitches
 static bool switchLastState[switchCount]; //previous state of footswitches (used for long press detection)
 static unsigned long lastPressMillis[switchCount]; // when the last button press was detected
