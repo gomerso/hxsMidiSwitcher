@@ -36,12 +36,14 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define ERR_DISP_ALLOC 3 // display allocation error
 
 static const unsigned ledPin = LED_BUILTIN; // use onboard LED as activity indicator
-static const byte switchPin[] = {2,3,4,5,6,7,8,9}; // pins for footswitch inputs
-static const byte switchCount = 8; // number of footswitches used
+static const byte switchPin[] = {2,3,4,5,6,7,8,9,10,11}; // pins for footswitch inputs
+static const byte switchCount = 10; // number of footswitches used
 static bool switchPressed[switchCount]; // current state of footswitches
 static bool switchLastState[switchCount]; //previous state of footswitches (used for long press detection)
 static unsigned long lastPressMillis[switchCount]; // when the last button press was detected
 static unsigned long lastReleaseMillis[switchCount]; // when the last button was released
+int page2led = 13;
+
 
 // Created and binds the MIDI interface to the default hardware Serial port
 MIDI_CREATE_DEFAULT_INSTANCE();
@@ -94,12 +96,16 @@ void setup() {
 
 } // end of setup
 
+//int command = 0;
+//int last_command = -1;
+//unsigned long now;
 
 void loop() {
   readButtons();
   displayUpdate();
   midiSend();
-} // end of loop
+}
+
 
 /*
  * ----------------------------------------
@@ -122,12 +128,14 @@ static const byte pageDnCmd = 5*switchCount + 1;
 static const byte pageUpCmd = 5*switchCount + 2; 
 static const byte pagePatchReset = 5*switchCount + 3; 
 static const byte tunerCmd =  5*switchCount + 4;
-
+bool long_press = false;
 static byte currentPage = 0; // the current page / bank to be displayed
+
 static const byte pageCount =1; // how many pages we have configured
 
 void readButtons() {  
   switchPressedCounter = 0;
+  long_press = false;
   for (int i=0;i<switchCount;i++) {
     switchPressed[i] = ( digitalRead(switchPin[i]) == switchDown ); // set array element to true if switch is currently pressed, or false if not
     if (switchPressed[i] != switchLastState[i]) { //potential press or release detected
@@ -149,6 +157,7 @@ void readButtons() {
     if (switchPressed[i]) {
       switchPressedCounter++;  //increment counter used to check multiple presses      
       if (  millis() > (lastPressMillis[i] + longPressTime)  ) { // long press detected
+        long_press = true;
         lastPressMillis[i] = millis(); // reset timer so it doesn't re-trigger every loop
         nextCommand = i + switchCount; // use the next n numbers as a second bank of commands representing long press actions        
       }
@@ -187,6 +196,7 @@ void changePageUp() {
   currentPage++;
   if (currentPage >= pageCount) { // we have gone past the last page
     currentPage = 0; // reset to first page
+    digitalWrite(13,LOW);
   }
 }
 
@@ -194,6 +204,7 @@ void changePageDown() {
   currentPage--;
   if (currentPage > pageCount) { // we have scrolled back past the first page
     currentPage = (pageCount -1); // reset to last page
+    digitalWrite(13,HIGH);
   }
 }
 
@@ -272,17 +283,43 @@ void displayUpdate(void) { // maybe change this to put labels in arrays, but thi
  * 
  */
 
+//void sendCommand(int _com) {
+//  sendCommandPage1(_com);
+//}
 
+
+//void sendCommandPage1(int _com) {
+  
 void midiSend() {
   // do something
   if (nextCommand >=0) {
     if (nextCommand == pagePatchReset) { // SW7 & SW8 should reset page and patch to 0 regardless of which page/patch currently active
       MIDI.sendProgramChange(0,1);
     }
+    else if(long_press) {
+//      if(_com == 1){
+      MIDI.sendControlChange(71,0,1); // Stomp mode
+//      }
+    }
     else if (nextCommand == tunerCmd) {
     MIDI.sendControlChange(68,68,1); //tuner
         }
-        
+//    else if (nextCommand = 0) {
+//      if(long_press){
+//        MIDI.sendControlChange(71,0,1); // Stomp mode
+//      }
+//      else {
+//        MIDI.sendControlChange(49,0,1); // FS1
+//    }
+//    }
+//    else if (nextCommand = 1) {
+//      if(long_press){
+//        MIDI.sendControlChange(71,1,1); //Scroll mode
+//      }
+//      else {
+//        MIDI.sendControlChange(50,0,1); // FS2
+//    }
+//    }
     else {
     switch(currentPage) {
       case 0: // menu page 0 (1 of 2)
