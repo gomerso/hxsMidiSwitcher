@@ -42,7 +42,7 @@ static bool switchPressed[switchCount]; // current state of footswitches
 static bool switchLastState[switchCount]; //previous state of footswitches (used for long press detection)
 static unsigned long lastPressMillis[switchCount]; // when the last button press was detected
 static unsigned long lastReleaseMillis[switchCount]; // when the last button was released
-int page2led = 13;
+
 
 
 // Created and binds the MIDI interface to the default hardware Serial port
@@ -55,19 +55,23 @@ void errBlink(int errCode) {
   int burstWait = 1000; // wait time between bursts 
   for (;;) { // loop forever
     for (int i = 1; i <= errCode; i++) {
-      digitalWrite(ledPin,HIGH);
+      digitalWrite(LED_BUILTIN,HIGH);
       delay(blinkTime);
-      digitalWrite(ledPin,LOW);
+      digitalWrite(LED_BUILTIN,LOW);
       delay(blinkGap);
     }
     delay(burstWait);
   }
 } // end of errBlink()
 
+void p2ledsoff(){
+  digitalWrite(12,LOW);
+}
+
 
 void setup() {
   pinMode(ledPin, OUTPUT);  // setup activity LED pin for output
-
+  pinMode(12,OUTPUT);
   MIDI.begin(MIDI_CHANNEL_OMNI);  // Listen to all incoming messages
   
  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
@@ -96,14 +100,17 @@ void setup() {
 
 } // end of setup
 
-//int command = 0;
-//int last_command = -1;
-//unsigned long now;
 
 void loop() {
   readButtons();
   displayUpdate();
+  ledUpdate();
   midiSend();
+//  lightPage2();
+//  digitalWrite(12, HIGH);   // turn the LED on (HIGH is the voltage level)
+//  delay(1000);                       // wait for a second
+//  digitalWrite(12, LOW);    // turn the LED off by making the voltage LOW
+//  delay(1000);        
 }
 
 
@@ -123,6 +130,8 @@ static const int longPressTime = 1000; // how long a switch has to be held to co
 static int switchPressedCounter = 0; // how many switches are currently pressed
 static byte nextCommand = -1; // most important pending action - the switch that was last pressed, or other command via multi or long press
 static byte lastCommand = -1; // last command sent (used for display confirmation)
+//static byte command = 0; // adding this to workout long presses
+//static byte last_command = -1;
 static unsigned long commandMillis = millis(); // the time that nextCommand was last set - ie the last switch to be pressed
 static const byte pageDnCmd = 5*switchCount + 1;
 static const byte pageUpCmd = 5*switchCount + 2; 
@@ -196,7 +205,6 @@ void changePageUp() {
   currentPage++;
   if (currentPage >= pageCount) { // we have gone past the last page
     currentPage = 0; // reset to first page
-    digitalWrite(13,LOW);
   }
 }
 
@@ -204,11 +212,18 @@ void changePageDown() {
   currentPage--;
   if (currentPage > pageCount) { // we have scrolled back past the first page
     currentPage = (pageCount -1); // reset to last page
-    digitalWrite(13,HIGH);
   }
 }
 
-
+void ledUpdate(void){
+  digitalWrite(12,LOW);
+  switch(currentPage){
+    case 0:
+      digitalWrite(12, LOW);
+    case 1:
+      digitalWrite(12,HIGH);
+  }
+}
 
 
 /*
@@ -283,12 +298,6 @@ void displayUpdate(void) { // maybe change this to put labels in arrays, but thi
  * 
  */
 
-//void sendCommand(int _com) {
-//  sendCommandPage1(_com);
-//}
-
-
-//void sendCommandPage1(int _com) {
   
 void midiSend() {
   // do something
@@ -296,95 +305,130 @@ void midiSend() {
     if (nextCommand == pagePatchReset) { // SW7 & SW8 should reset page and patch to 0 regardless of which page/patch currently active
       MIDI.sendProgramChange(0,1);
     }
-    else if(long_press) {
-//      if(_com == 1){
-      MIDI.sendControlChange(71,0,1); // Stomp mode
-//      }
-    }
     else if (nextCommand == tunerCmd) {
     MIDI.sendControlChange(68,68,1); //tuner
         }
-//    else if (nextCommand = 0) {
-//      if(long_press){
-//        MIDI.sendControlChange(71,0,1); // Stomp mode
-//      }
-//      else {
-//        MIDI.sendControlChange(49,0,1); // FS1
-//    }
-//    }
-//    else if (nextCommand = 1) {
-//      if(long_press){
-//        MIDI.sendControlChange(71,1,1); //Scroll mode
-//      }
-//      else {
-//        MIDI.sendControlChange(50,0,1); // FS2
-//    }
-//    }
     else {
     switch(currentPage) {
       case 0: // menu page 0 (1 of 2)
        switch(nextCommand) {
-        case 0:
-          MIDI.sendControlChange(49,0,1); //FS1
-          break;
-        case 1:
-          MIDI.sendControlChange(50,0,1); //FS2
-          break;
-        case 2:
-          MIDI.sendControlChange(51,0,1); //FS3
+        case 4:
+          MIDI.sendControlChange(69,0,1); // snapshot 1
           break;
         case 3:
-          MIDI.sendControlChange(52,0,1); //FS4
-          break;
-        case 4:
-          MIDI.sendControlChange(69,0,1); //snapshot 1
-          break;
-        case 5:
           MIDI.sendControlChange(69,1,1); // snapshot 2
           break;
-        case 6:
-          MIDI.sendControlChange(69,2,1); //snapshot 3
-          break;
-        case 7:
-          MIDI.sendControlChange(53,0,1); //FS5
-          break;        
-        
-        } // end of menu page 0
-        break;
-      case 1: // menu page 1 (2 of 2)
-       switch(nextCommand) {
-        case 0:
-          // -> FS1
-          MIDI.sendControlChange(49,0,1); //FS1
+        case 2:
+          MIDI.sendControlChange(69,2,1); // snapshot 3
           break;
         case 1:
-          // -> FS2
-          MIDI.sendControlChange(50,0,1); //FS2
-          break;
-        case 2:
-          // -> FS3
           MIDI.sendControlChange(51,0,1); //FS3
           break;
-        case 3:
-          // -> PRESET MODE PAGE
-          MIDI.sendControlChange(71,4,1); //next footswitch mode (temp functionality until I work out if I can change currentPage while in switch block)
-          break;
-        case 4:
-          MIDI.sendControlChange(52,0,1); //FS4
+        case 0:
+          MIDI.sendControlChange(52,0,1); // FS4
           break;
         case 5:
-          MIDI.sendControlChange(53,0,1); //FS5
+          MIDI.sendControlChange(60,127,1); //looper record
           break;
         case 6:
-          MIDI.sendControlChange(64,64,1); //tap tempo
-          break;
+          MIDI.sendControlChange(61,127,1); // looper play
+          break;        
         case 7:
-          MIDI.sendControlChange(68,68,1); //tuner
+          MIDI.sendControlChange(62,127,1); //looper play once
           break;
-        } // end of menu page 1
+        case 8:
+          MIDI.sendControlChange(60,0,1); //looper overdub
+          break;    
+        case 9:
+          MIDI.sendControlChange(63,127,1); // looper undo/redo
+          break;   
+        case 10:
+          MIDI.sendControlChange(71,0,1); // stomp mode
+          break;
+        case 11:
+          MIDI.sendControlChange(71,1,1); // Scroll mode
+          break;
+        case 12:
+          MIDI.sendControlChange(71,4,1); // next mode
+          break;
+        case 13:
+          MIDI.sendControlChange(53,0,1); // FS5
+          break;
+        case 14:
+          MIDI.sendProgramChange(101,1);// preset 101
+          break;
+        case 15:
+          MIDI.sendProgramChange(1,1);
+        case 16:
+          MIDI.sendProgramChange(2,1);
+        case 17:
+          MIDI.sendControlChange(61,0,1); // looper stop
+        case 18:
+          changePageUp();
+        case 19:
+          changePageDown();
+        } // end of menu page 0
         break;
-      
-      
+//      case 1: // menu page 0 (2 of 2)
+//       switch(nextCommand) {
+//        case 0:
+//          MIDI.sendControlChange(52,0,1); // FS4
+//          break;
+//        case 1:
+//          MIDI.sendControlChange(51,0,1); //FS3
+//          break;
+//        case 2:
+//          MIDI.sendControlChange(69,2,1); // snapshot 3
+//          break;
+//        case 3:
+//          MIDI.sendControlChange(69,1,1); // snapshot 2
+//          break;
+//        case 4:
+//          MIDI.sendControlChange(69,0,1); // snapshot 1
+//          break;  
+//        case 5:
+//          MIDI.sendControlChange(60,127,0); //looper record
+//          break;
+//        case 6:
+//          MIDI.sendControlChange(61,127,1); // looper play
+//          break;        
+//        case 7:
+//          MIDI.sendControlChange(62,127,1); //looper play once
+//          break;
+//        case 8:
+//          MIDI.sendControlChange(60,0,1); //looper overdub
+//          break;    
+//        case 9:
+//          MIDI.sendControlChange(63,127,1); // looper undo/redo
+//          break;   
+//        case 10:
+//          MIDI.sendControlChange(71,0,1); // stomp mode
+//          break;
+//        case 11:
+//          MIDI.sendControlChange(71,1,1); // Scroll mode
+//          break;
+//        case 12:
+//          MIDI.sendControlChange(71,4,1); // next mode
+//          break;
+//        case 13:
+//          MIDI.sendControlChange(53,0,1); // FS5
+//          break;
+//        case 14:
+//          MIDI.sendProgramChange(101,1);// preset 101
+//          break;
+//        case 15:
+//          MIDI.sendProgramChange(1,1);
+//        case 16:
+//          MIDI.sendProgramChange(2,1);
+//        case 17:
+//          MIDI.sendControlChange(61,0,1); // looper stop
+//        case 18:
+//          changePageUp();
+//        case 19:
+//          changePageDown();
+//        } // end of menu page 0
+        break;
+            
         break;
     } // end of outer nested switch case
 }      
