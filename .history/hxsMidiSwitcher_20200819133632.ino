@@ -2,13 +2,16 @@
 /*
  * ---------------------------------------------------
  * 
- * Simple 10 button MIDI controller for Line 6 HX Stomp using Nano clone
+ * Simple 8 button MIDI controller for Line 6 HX Stomp using Nano clone
  * 
  * MIDI connectivity based on https://www.instructables.com/id/Send-and-Receive-MIDI-with-Arduino/
  * MIDI pin 4 to TX1
  * 
+ * 128x64 I2C OLED - the one I used was https://smile.amazon.co.uk/gp/product/B076PL474K
+ * SDA to A4
+ * SCL to A5
  * 
- * 10x momentary SPST switches connected between GND and D2 - D11
+ * 8x momentary SPST switches connected between GND and D2 - D9
  * 
  * ---------------------------------------------------
  */
@@ -17,18 +20,57 @@
 
 #include <MIDI.h>
 
+
 // error blink codes
 #define ERR_DISP_ALLOC 3 // display allocation error
 
 static const unsigned ledPin = LED_BUILTIN; // use onboard LED as activity indicator
-static const byte looperLed = 12;
 static const byte switchPin[] = {2,3,4,5,6,7,8,9,10,11}; // pins for footswitch inputs
 static const byte switchCount = 10; // number of footswitches used
 static bool switchPressed[switchCount]; // current state of footswitches
 static bool switchLastState[switchCount]; //previous state of footswitches (used for long press detection)
 static unsigned long lastPressMillis[switchCount]; // when the last button press was detected
 static unsigned long lastReleaseMillis[switchCount]; // when the last button was released
-static byte currentPage = 1; // the current page / bank to be displayed
+
+// ******************************** MIDI MESSAGES *******************************
+
+//CHANNEL
+int midiChannel = 1;
+
+// FXs
+
+int ccOn = 127;
+int ccOff = 0;
+
+//SNAPSHOTS
+int snapShots = 69;
+
+int snapShot1 = 0;
+int snapShot2 = 1;
+int snapShot3 = 2;
+
+//LOOPER
+int recordOverdub = 60;
+int playStop = 61;
+int playOnce = 62;
+int redoUndo = 63;
+int fwdRev = 65;
+int fullHalf = 66;
+
+int looperRecord = 127;
+int looperOverdub = 0;
+int looperPlay = 127;
+int looperStop = 0;
+int looperRedo = 127;
+int looperPlayOnce = 127;
+int looperFwd = 0;
+int looperRev = 127;
+int looperFull = 0;
+int looperHalf = 127;
+
+int looperLight = 12
+// ********************************************************************
+
 
 
 // Created and binds the MIDI interface to the default hardware Serial port
@@ -54,13 +96,11 @@ void errBlink(int errCode) {
 
 void setup() {
   pinMode(ledPin, OUTPUT);  // setup activity LED pin for output
-  pinMode(looperLed,OUTPUT);
-  digitalWrite(looperLed,LOW);
+  pinMode(looperLight,OUTPUT);
+  digitalWrite(looperLight, LOW);
   MIDI.begin(MIDI_CHANNEL_OMNI);  // Listen to all incoming messages
-  
 
   delay(500); // Pause for 0.5 seconds
-
   
   // Initialise switches and related variable arrays
   for (int i=0;i<switchCount;i++) { 
@@ -76,8 +116,7 @@ void setup() {
 
 void loop() {
   readButtons();
-  midiSend();
-  lightLooper();    
+  midiSend(); 
 }
 
 
@@ -103,7 +142,7 @@ static const byte pageUpCmd = 5*switchCount + 2;
 static const byte pagePatchReset = 5*switchCount + 3; 
 static const byte tunerCmd =  5*switchCount + 4;
 bool long_press = false;
-
+static byte currentPage = 1; // the current page / bank to be displayed
 
 static const byte pageCount =2; // how many pages we have configured
 
@@ -141,27 +180,22 @@ void readButtons() {
   if (switchPressedCounter > 1 ) { // multiple presses detected
     if (!comboActive) {
       comboActive = true;
-//      if ( switchPressed[0] && switchPressed[1]) { // first two switches -> Page Down
-//        nextCommand = pageDnCmd;
-//        changePageDown();
-//        }
-//      if ( switchPressed[0] && switchPressed[1]) { // first two switches -> Page Down
-//        nextCommand = pageDnCmd;
-//        changePageDown();
-//        }
-//      else if ( switchPressed[1] && switchPressed[2]) { // second two switches -> Page Up
-//        nextCommand = pageUpCmd;
-//        changePageUp();
-//        }
-//      else 
-        if ( switchPressed[2] && switchPressed[3]) { // 3rd 2 switches -> tuner
+      if ( switchPressed[0] && switchPressed[1]) { // first two switches -> Page Down
+        nextCommand = pageDnCmd;
+        changePageDown();
+        }
+      else if ( switchPressed[1] && switchPressed[2]) { // second two switches -> Page Up
+        nextCommand = pageUpCmd;
+        changePageUp();
+        }
+      else if ( switchPressed[2] && switchPressed[3]) { // 3rd 2 switches -> tuner
         nextCommand = tunerCmd;
         }
         
           
-      else if ( switchPressed[8] && switchPressed[9]) { // last two switches - reset to page 0 and patch 0
+      else if ( switchPressed[6] && switchPressed[7]) { // last two switches - reset to page 0 and patch 0
         nextCommand = pagePatchReset;
-        currentPage = 1;
+        currentPage = 0;
       }
       }
     }
@@ -171,25 +205,26 @@ void readButtons() {
   lastCommand = nextCommand;
 } // end of read_buttons()
 
-void lightLooper(){
-  if (currentPage = 1){
-    digitalWrite(looperLed,LOW);
-  }
-  else if (currentPage = 2){
-    digitalWrite(looperLed,HIGH);
+void changePageUp() {
+  currentPage++;
+  if (currentPage >= pageCount) { // we have gone past the last page
+    currentPage = 1; // reset to first page
   }
 }
 
 void changePage(){
-  currentPage++;
-  digitalWrite(looperLed,HIGH);
-  if (currentPage = 2){
-    currentPage = 1;
-    digitalWrite(looperLed,LOW);
+  if (currentPage = 1){
+    currentPage = 2;
   }
+  else
 }
 
-
+void changePageDown() {
+  currentPage--;
+  if (currentPage > pageCount) { // we have scrolled back past the first page
+    currentPage = (pageCount -1); // reset to last page
+  }
+}
 
 
 /*
@@ -203,130 +238,73 @@ void midiSend() {
   // do something
   if (nextCommand >=0) {
     if (nextCommand == pagePatchReset) { // SW7 & SW8 should reset page and patch to 0 regardless of which page/patch currently active
-      MIDI.sendProgramChange(0,1);
+      MIDI.sendProgramChange(0,midiChannel);
     }
     else if (nextCommand == tunerCmd) {
-    MIDI.sendControlChange(68,68,1); //tuner
+    MIDI.sendControlChange(68,68,midiChannel); //tuner
         }
     else {
     switch(currentPage) {
-      case 1: // menu page 1 (1 of 2)
+      case 0: // menu page 0 (1 of 2)
        switch(nextCommand) {
         case 4:
-          MIDI.sendControlChange(69,0,1); // snapshot 1
+          MIDI.sendControlChange(snapShots,snapShot1,midiChannel); // snapshot 1
           break;
         case 3:
-          MIDI.sendControlChange(69,1,1); // snapshot 2
+          MIDI.sendControlChange(snapShots,snapShot2,midiChannel); // snapshot 2
           break;
         case 2:
-          MIDI.sendControlChange(69,2,1); // snapshot 3
+          MIDI.sendControlChange(snapShots,snapShot3,midiChannel); // snapshot 3
           break;
         case 1:
-          MIDI.sendControlChange(51,0,1); //FS3
+          MIDI.sendControlChange(51,ccOff,midiChannel); //FS3
           break;
         case 0:
-          MIDI.sendControlChange(52,0,1); // FS4
+          MIDI.sendControlChange(52,ccOff,midiChannel); // FS4
           break;
-        case 9:
-          MIDI.sendControlChange(60,127,1); //looper record
-          break;
-        case 8:
-          MIDI.sendControlChange(61,127,1); // looper play
-          break;        
-        case 7:
-          MIDI.sendControlChange(62,127,1); //looper play once
+        case 5:
+          MIDI.sendControlChange(60,ccOn,midiChannel); //looper record
           break;
         case 6:
-          MIDI.sendControlChange(60,0,1); //looper overdub
+          MIDI.sendControlChange(61,ccOn,midiChannel); // looper play
+          break;        
+        case 7:
+          MIDI.sendControlChange(62,ccOn,midiChannel); //looper play once
+          break;
+        case 8:
+          MIDI.sendControlChange(60,ccOff,midiChannel); //looper overdub
           break;    
-        case 5:
-          MIDI.sendControlChange(63,127,1); // looper undo/redo
+        case 9:
+          MIDI.sendControlChange(63,ccOn,midiChannel); // looper undo/redo
           break;   
-        case 14:
-          MIDI.sendControlChange(71,0,1); // stomp mode
-          break;
-        case  13:
-          MIDI.sendControlChange(71,1,1); // Scroll mode
-          break;
-        case 12:
-          MIDI.sendControlChange(71,4,1); // next mode
+        case 10:
+          MIDI.sendControlChange(71,ccOff,midiChannel); // stomp mode
           break;
         case 11:
-          MIDI.sendControlChange(53,0,1); // FS5
+          MIDI.sendControlChange(71,1,midiChannel); // Scroll mode
           break;
-        case 10:
-          MIDI.sendProgramChange(101,1);// preset 101
+        case 12:
+          MIDI.sendControlChange(71,4,midiChannel); // next mode
           break;
-        case 19:
-          MIDI.sendProgramChange(1,1);
-        case 18:
-          MIDI.sendProgramChange(2,1);
-        case 17:
-          MIDI.sendControlChange(61,0,1); // looper stop
-        case 16:
-          changePage();
+        case 13:
+          MIDI.sendControlChange(53,ccOff,midiChannel); // FS5
+          break;
+        case 14:
+          MIDI.sendProgramChange(101,midiChannel);// preset 101
+          break;
         case 15:
-          changePage();
+          MIDI.sendProgramChange(1,midiChannel);
+        case 16:
+          MIDI.sendProgramChange(2,midiChannel);
+        case 17:
+          MIDI.sendControlChange(61,ccOff,midiChannel); // looper stop
+        case 18:
+          changePageUp();
+        case 19:
+          changePageDown();
         } // end of menu page 0
         break;
-//    case 2: // menu page 2 (2 of 2)
-//       switch(nextCommand) {
-//        case 0:
-//          MIDI.sendControlChange(69,0,1); // snapshot 1
-//          break;
-//        case 1:
-//          MIDI.sendControlChange(69,1,1); // snapshot 2
-//          break;
-//        case 2:
-//          MIDI.sendControlChange(69,2,1); // snapshot 3
-//          break;
-//        case 3:
-//          MIDI.sendControlChange(51,0,1); //FS3
-//          break;
-//        case 4:
-//          MIDI.sendControlChange(52,0,1); // FS4
-//          break;
-//        case 5:
-//          MIDI.sendControlChange(60,127,1); //looper record
-//          break;
-//        case 6:
-//          MIDI.sendControlChange(61,127,1); // looper play
-//          break;        
-//        case 7:
-//          MIDI.sendControlChange(62,127,1); //looper play once
-//          break;
-//        case 8:
-//          MIDI.sendControlChange(60,0,1); //looper overdub
-//          break;    
-//        case 9:
-//          MIDI.sendControlChange(63,127,1); // looper undo/redo
-//          break;   
-//        case 10:
-//          MIDI.sendControlChange(71,0,1); // stomp mode
-//          break;
-//        case 11:
-//          MIDI.sendControlChange(71,1,1); // Scroll mode
-//          break;
-//        case 12:
-//          MIDI.sendControlChange(71,4,1); // next mode
-//          break;
-//        case 13:
-//          MIDI.sendControlChange(53,0,1); // FS5
-//          break;
-//        case 14:
-//          MIDI.sendProgramChange(101,1);// preset 101
-//          break;
-//        case 15:
-//          MIDI.sendProgramChange(1,1);
-//        case 16:
-//          MIDI.sendProgramChange(2,1);
-//        case 17:
-//          MIDI.sendControlChange(61,0,1); // looper stop
-//        case 18:
-//          changePage();
-//        case 19:
-//          changePage();
-//        } // end of menu page 0
+
         break;
             
         break;
