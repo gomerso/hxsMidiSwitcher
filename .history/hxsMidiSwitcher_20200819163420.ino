@@ -61,7 +61,11 @@ void setup() {
   
 
   delay(500); // Pause for 0.5 seconds
-
+  display.setTextSize(1);      // Normal 1:1 pixel scale
+  display.setTextColor(WHITE); // Draw white text
+  display.setCursor(0, 0);     // Start at top-left corner
+  display.cp437(true);         // Use full 256 char 'Code Page 437' font
+  display.clearDisplay();
   
   // Initialise switches and related variable arrays
   for (int i=0;i<switchCount;i++) { 
@@ -80,6 +84,7 @@ void setup() {
 
 void loop() {
   readButtons();
+  displayUpdate();
   midiSend();
 }
 
@@ -190,6 +195,72 @@ void changePageDown() {
 
 /*
  * 
+ * Display related functions
+ * 
+ */
+
+
+void invSelection(int i=(lastCommand+1)) {
+  if (lastCommand == i) { // highlight the last switch pressed by inverting the colours
+    display.setTextColor(BLACK, WHITE);
+  }
+  else {
+    display.setTextColor(WHITE, BLACK);
+  }
+}
+
+
+void displayLine(const __FlashStringHelper *str0, const __FlashStringHelper *str1, const __FlashStringHelper *str2, const __FlashStringHelper *str3, int startBtn) {
+display.print(F("|"));
+invSelection(0+startBtn);
+display.print(str0);
+invSelection();
+display.print(F("|"));
+invSelection(1+startBtn);
+display.print(str1);
+invSelection();
+display.print(F("|"));
+invSelection(2+startBtn);
+display.print(str2);
+invSelection();
+display.print(F("|"));
+invSelection(3+startBtn);
+display.print(str3);
+invSelection();
+display.println(F("|"));
+}
+
+
+void displayUpdate(void) { // maybe change this to put labels in arrays, but this will do for now
+  display.clearDisplay();
+  display.setCursor(0, 0);     // Start at top-left corner
+  switch (currentPage) {
+    case 0:
+      displayLine(F("SNAP"),F("SNAP"),F("SNAP"),F("FS5 "),4);
+      displayLine(F("SHOT"),F("SHOT"),F("SHOT"),F(" /  "),4);
+      displayLine(F(" 1  "),F(" 2  "),F(" 3  "),F(" UP "),4);   
+      display.println(F("---------------------"));
+      displayLine(F("    "),F("    "),F("    "),F("FS4 "),0);
+      displayLine(F("FS1 "),F("FS2 "),F("FS3 "),F(" /  "),0);
+      displayLine(F("    "),F("    "),F("    "),F("DOWN"),0);
+      break;
+   
+    case 1:
+      displayLine(F("FS4 "),F("FS5 "),F("TAP "),F("    "),4);
+      displayLine(F(" /  "),F(" /  "),F("TMPO"),F("TUNE"),4);
+      displayLine(F("DOWN"),F(" UP "),F("    "),F("    "),4);
+      display.println(F("---------------------"));
+      displayLine(F("    "),F("    "),F("    "),F("NEXT"),0);
+      displayLine(F("FS1 "),F("FS2 "),F("FS3 "),F(" FS "),0);
+      displayLine(F("    "),F("    "),F("    "),F("MODE"),0);   
+      break;
+ 
+    }
+  display.display();
+}
+
+/*
+ * 
  * MIDI output related functions
  * 
  */
@@ -215,33 +286,48 @@ void midiSend() {
     else if (nextCommand == tunerCmd) {
     MIDI.sendControlChange(68,68,1); //tuner
         }
-
+//    else if (nextCommand = 0) {
+//      if(long_press){
+//        MIDI.sendControlChange(71,0,1); // Stomp mode
+//      }
+//      else {
+//        MIDI.sendControlChange(49,0,1); // FS1
+//    }
+//    }
+//    else if (nextCommand = 1) {
+//      if(long_press){
+//        MIDI.sendControlChange(71,1,1); //Scroll mode
+//      }
+//      else {
+//        MIDI.sendControlChange(50,0,1); // FS2
+//    }
+//    }
     else {
     switch(currentPage) {
       case 0: // menu page 0 (1 of 2)
        switch(nextCommand) {
-        case 7:
+        case 0:
           MIDI.sendControlChange(49,0,1); //FS1
           break;
-        case 6:
+        case 1:
           MIDI.sendControlChange(50,0,1); //FS2
           break;
-        case 5:
+        case 2:
           MIDI.sendControlChange(51,0,1); //FS3
           break;
-        case 4:
+        case 3:
           MIDI.sendControlChange(52,0,1); //FS4
           break;
-        case 3:
+        case 4:
           MIDI.sendControlChange(69,0,1); //snapshot 1
           break;
-        case 2:
+        case 5:
           MIDI.sendControlChange(69,1,1); // snapshot 2
           break;
-        case 1:
+        case 6:
           MIDI.sendControlChange(69,2,1); //snapshot 3
           break;
-        case 0:
+        case 7:
           MIDI.sendControlChange(53,0,1); //FS5
           break;        
         

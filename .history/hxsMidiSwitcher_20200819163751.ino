@@ -220,28 +220,28 @@ void midiSend() {
     switch(currentPage) {
       case 0: // menu page 0 (1 of 2)
        switch(nextCommand) {
-        case 7:
+        case 0:
           MIDI.sendControlChange(49,0,1); //FS1
           break;
-        case 6:
+        case 1:
           MIDI.sendControlChange(50,0,1); //FS2
           break;
-        case 5:
+        case 2:
           MIDI.sendControlChange(51,0,1); //FS3
           break;
-        case 4:
+        case 3:
           MIDI.sendControlChange(52,0,1); //FS4
           break;
-        case 3:
+        case 4:
           MIDI.sendControlChange(69,0,1); //snapshot 1
           break;
-        case 2:
+        case 5:
           MIDI.sendControlChange(69,1,1); // snapshot 2
           break;
-        case 1:
+        case 6:
           MIDI.sendControlChange(69,2,1); //snapshot 3
           break;
-        case 0:
+        case 7:
           MIDI.sendControlChange(53,0,1); //FS5
           break;        
         

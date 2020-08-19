@@ -235,13 +235,13 @@ void midiSend() {
         case 3:
           MIDI.sendControlChange(69,0,1); //snapshot 1
           break;
-        case 2:
+        case 5:
           MIDI.sendControlChange(69,1,1); // snapshot 2
           break;
-        case 1:
+        case 6:
           MIDI.sendControlChange(69,2,1); //snapshot 3
           break;
-        case 0:
+        case 7:
           MIDI.sendControlChange(53,0,1); //FS5
           break;        
         

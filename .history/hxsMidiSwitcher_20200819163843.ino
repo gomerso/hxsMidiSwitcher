@@ -241,7 +241,7 @@ void midiSend() {
         case 1:
           MIDI.sendControlChange(69,2,1); //snapshot 3
           break;
-        case 0:
+        case 7:
           MIDI.sendControlChange(53,0,1); //FS5
           break;        
         
