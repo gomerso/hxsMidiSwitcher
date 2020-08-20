@@ -22,8 +22,8 @@
 
 static const unsigned ledPin = LED_BUILTIN; // use onboard LED as activity indicator
 static const byte looperLed = 12;
-static const byte switchPin[] = {6,5,4,3,2,7,8,9}; // pins for footswitch inputs
-static const byte switchCount = 8; // number of footswitches used
+static const byte switchPin[] = {6,5,4,3,2,7,8,9,10,11}; // pins for footswitch inputs
+static const byte switchCount = 10; // number of footswitches used
 static bool switchPressed[switchCount]; // current state of footswitches
 static bool switchLastState[switchCount]; //previous state of footswitches (used for long press detection)
 static unsigned long lastPressMillis[switchCount]; // when the last button press was detected
@@ -101,14 +101,12 @@ static const byte pageDnCmd = 5*switchCount + 1;
 static const byte pageUpCmd = 5*switchCount + 2; 
 static const byte pagePatchReset = 5*switchCount + 3; 
 static const byte tunerCmd =  5*switchCount + 4;
-bool long_press = false;
 static byte currentPage = 0; // the current page / bank to be displayed
 
 static const byte pageCount =1; // how many pages we have configured
 
 void readButtons() {  
   switchPressedCounter = 0;
-  long_press = false;
   for (int i=0;i<switchCount;i++) {
     switchPressed[i] = ( digitalRead(switchPin[i]) == switchDown ); // set array element to true if switch is currently pressed, or false if not
     if (switchPressed[i] != switchLastState[i]) { //potential press or release detected
@@ -130,7 +128,6 @@ void readButtons() {
     if (switchPressed[i]) {
       switchPressedCounter++;  //increment counter used to check multiple presses      
       if (  millis() > (lastPressMillis[i] + longPressTime)  ) { // long press detected
-        long_press = true;
         lastPressMillis[i] = millis(); // reset timer so it doesn't re-trigger every loop
         nextCommand = i + switchCount; // use the next n numbers as a second bank of commands representing long press actions        
       }
@@ -145,16 +142,25 @@ void readButtons() {
         changePageDown();
         }
       else if ( switchPressed[1] && switchPressed[2]) { // second two switches -> Page Up
-        nextCommand = pageUpCmd;
-        changePageUp();
+        if (currentPage = 0){
+          currentPage = 1;
         }
+        if (currentPage = 1){
+          currentPage = 0;
+        }
+        }
+//        }
+//        nextCommand = pageUpCmd;
+//        changePageUp();
+//        }
       else if ( switchPressed[2] && switchPressed[3]) { // 3rd 2 switches -> tuner
         nextCommand = tunerCmd;
+        MIDI.sendControlChange(68,68,1); //tuner
         }
         
           
-      else if ( switchPressed[7] && switchPressed[8]) { // last two switches - reset to page 0 and patch 0
-        nextCommand = pagePatchReset;
+      else if ( switchPressed[9] && switchPressed[10]) { // last two switches - reset to page 0 and patch 0
+//        nextCommand = pagePatchReset;
         currentPage = 1;
       }
       }
@@ -168,17 +174,17 @@ void readButtons() {
 
 
 void changePageUp() {
-  currentPage++;
-  if (currentPage >= pageCount) { // we have gone past the last page
+  currentPage = 1;
+  if (currentPage = 1) { // we have gone past the last page
     currentPage = 0; // reset to first page
     digitalWrite(12,LOW);
   }
 }
 
 void changePageDown() {
-  currentPage--;
-  if (currentPage > pageCount) { // we have scrolled back past the first page
-    currentPage = (pageCount -1); // reset to last page
+  currentPage = 0;
+  if (currentPage = 0) { // we have scrolled back past the first page
+    currentPage = 1; // reset to last page
     digitalWrite(12, HIGH);
   }
 }
@@ -197,6 +203,12 @@ void midiSend() {
   if (nextCommand >=0) {
     if (nextCommand == pagePatchReset) { // SW7 & SW8 should reset page and patch to 0 regardless of which page/patch currently active
       MIDI.sendProgramChange(0,1);
+    }
+    else if (nextCommand == pageUpCmd){
+      changePageUp();
+    }
+    else if (nextCommand == pageDnCmd){
+      changePageDown();
     }
     else if (nextCommand == tunerCmd) {
     MIDI.sendControlChange(68,68,1); //tuner
@@ -236,10 +248,22 @@ void midiSend() {
           MIDI.sendProgramChange(9,1);
           break;   
         case 10:
-          MIDI.sendProgramChange(10,1);
+        switch(currentPage){
+          case 0:
+            currentPage = 1;
+            MIDI.sendProgramChange(10,1);
+            digitalWrite(12,HIGH);
+            break;
+          case 1:
+            currentPage = 0;
+            MIDI.sendProgramChange(0,1);
+            digitalWrite(12, LOW);
+          }
           break;
         case  11:
-          MIDI.sendProgramChange(11,1);
+//          currentPage = 1;
+//          digitalWrite(12,HIGH);
+          MIDI.sendProgramChange(10,1);
           break;
         case 12:
           MIDI.sendProgramChange(12,1);
@@ -287,11 +311,24 @@ void midiSend() {
           MIDI.sendProgramChange(25,1);
           break;   
         case 10:
-          MIDI.sendProgramChange(26,1);
+        switch(currentPage){
+          case 0:
+            currentPage = 1;
+            MIDI.sendProgramChange(10,1);
+            digitalWrite(12,HIGH);
+            break;
+          case 1:
+            currentPage = 0;
+            MIDI.sendProgramChange(0,1);
+            digitalWrite(12, LOW);
+          }
           break;
         case  11:
-          MIDI.sendProgramChange(27,1);
+//          currentPage = 1;
+//          digitalWrite(12,HIGH);
+          MIDI.sendProgramChange(10,1);
           break;
+          
         case 12:
           MIDI.sendProgramChange(28,1);
           break;
