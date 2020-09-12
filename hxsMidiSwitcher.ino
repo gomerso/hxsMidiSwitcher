@@ -218,25 +218,31 @@ void midiSend() {
       case 0: // menu page 1 (1 of 2)
        switch(nextCommand) {
         case 0:
-          MIDI.sendProgramChange(0,1);
+          MIDI.sendControlChange(69,0,1);
           break;
         case 1:
-          MIDI.sendProgramChange(1,1);
+          MIDI.sendControlChange(69,1,1);
           break;
         case 2:
-          MIDI.sendProgramChange(2,1);
+          MIDI.sendControlChange(69,2,1);
           break;
         case 3:
-          MIDI.sendProgramChange(3,1);
+          MIDI.sendControlChange(52,2,1);
           break;
         case 4:
-          MIDI.sendProgramChange(4,1);
+          MIDI.sendControlChange(53,2,1);
           break;
         case 5:
-          MIDI.sendProgramChange(5,1);
+          MIDI.sendControlChange(71, 1,1); // HX scroll mode
+          delay(30);
+          MIDI.sendControlChange(50, 127,1); // FS 2 (up)
+          MIDI.sendControlChange(71, 0,1);  // HX stomp mode
           break;
         case 6:
-          MIDI.sendProgramChange(6,1);
+          MIDI.sendControlChange(71, 1,1);   // HX scroll mode
+          delay(30);
+          MIDI.sendControlChange(49, 127,1); // FS 1 (down)
+          MIDI.sendControlChange(71, 0,1);   // HX stomp mode
           break;        
         case 7:
           MIDI.sendProgramChange(7,1);
